@@ -12,20 +12,30 @@ import com.example.hobbyapp160421148.model.Story
 class StoryListAdapter : ListAdapter<Story, StoryListAdapter.NewsViewHolder>(NewsDiffCallback()) {
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): NewsViewHolder {
-        val binding = FragmentStoryListAdapterBinding.inflate(LayoutInflater.from(parent.context), parent, false)
+        val binding = inflateBinding(parent)
         return NewsViewHolder(binding)
+    }
+
+    private fun inflateBinding(parent: ViewGroup): FragmentStoryListAdapterBinding {
+        return FragmentStoryListAdapterBinding.inflate(LayoutInflater.from(parent.context), parent, false)
     }
 
     override fun onBindViewHolder(holder: NewsViewHolder, position: Int) {
         val news = getItem(position)
         holder.bind(news)
+        loadImage(holder, news)
+        setItemClickListener(holder, news)
+    }
 
+    private fun loadImage(holder: NewsViewHolder, story: Story) {
         Glide.with(holder.itemView.context)
-            .load(news.imageUrl)
+            .load(story.imageUrl)
             .into(holder.binding.showImage)
+    }
 
+    private fun setItemClickListener(holder: NewsViewHolder, story: Story) {
         holder.binding.btnRead.setOnClickListener {
-            onItemClickListener?.invoke(news)
+            onItemClickListener?.invoke(story)
         }
     }
 
@@ -42,7 +52,6 @@ class StoryListAdapter : ListAdapter<Story, StoryListAdapter.NewsViewHolder>(New
             binding.showTitle.text = story.title
             binding.showDescription.text = story.description
             binding.showAuthor.text = story.author
-
         }
     }
 

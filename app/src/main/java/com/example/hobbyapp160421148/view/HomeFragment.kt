@@ -30,18 +30,31 @@ class HomeFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+        initViewModel()
+        initStoryList()
+        observeStoryList()
+        setupClickListener()
+    }
 
+    private fun initViewModel() {
         storyViewModel = ViewModelProvider(this).get(StoryViewModel::class.java)
+    }
 
+    private fun initStoryList() {
         storyListAdapter = StoryListAdapter()
         binding.lstStory.apply {
             layoutManager = LinearLayoutManager(requireContext())
             adapter = storyListAdapter
         }
+    }
 
+    private fun observeStoryList() {
         storyViewModel.storyList.observe(viewLifecycleOwner) { newsList ->
             storyListAdapter.submitList(newsList)
         }
+    }
+
+    private fun setupClickListener() {
         storyListAdapter.setOnItemClickListener { news ->
             val bundle = Bundle().apply {
                 putParcelable("news", news)
@@ -51,7 +64,6 @@ class HomeFragment : Fragment() {
 //        binding.btnProfil.setOnClickListener {
 //            findNavController().navigate(R.id.action_homeFragment_to_profilFragment)
 //        }
-
     }
 
     override fun onDestroyView() {

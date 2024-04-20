@@ -10,6 +10,7 @@ import androidx.fragment.app.Fragment
 import androidx.navigation.fragment.findNavController
 import com.example.hobbyapp160421148.R
 import com.example.hobbyapp160421148.api.ApiService
+import com.example.hobbyapp160421148.api.Db_Contract
 import com.example.hobbyapp160421148.api.UserProfileResponse
 import com.example.hobbyapp160421148.databinding.FragmentProfilBinding
 import com.google.gson.GsonBuilder
@@ -33,7 +34,10 @@ class ProfilFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+        setupClickListener()
+    }
 
+    private fun setupClickListener() {
         binding.btnSave.setOnClickListener {
             val firstName = binding.txtNamaDepan.text.toString()
             val lastName = binding.txtNamaBelakang.text.toString()
@@ -43,16 +47,15 @@ class ProfilFragment : Fragment() {
         }
 
         binding.btnLogout.setOnClickListener {
-            findNavController().navigate(R.id.action_profilFragment_to_loginFragment)
+            navigateToLoginFragment()
         }
     }
-
 
     private fun updateProfile(firstName: String, lastName: String, password: String) {
         val gson = GsonBuilder().setLenient().create()
 
         val retrofit = Retrofit.Builder()
-            .baseUrl("http://192.168.1.3/anmp/uts/") // Base URL of your API
+            .baseUrl(Db_Contract.url)
             .addConverterFactory(GsonConverterFactory.create(gson))
             .build()
 
@@ -64,43 +67,43 @@ class ProfilFragment : Fragment() {
                 call: Call<UserProfileResponse>,
                 response: Response<UserProfileResponse>
             ) {
-                if (response.isSuccessful) {
-                    val userProfileResponse = response.body()
-                    if (userProfileResponse?.status == "success") {
-                        Toast.makeText(
-                            requireContext(),
-                            "Profile updated successfully",
-                            Toast.LENGTH_SHORT
-                        ).show()
-                    } else {
-                        Toast.makeText(
-                            requireContext(),
-                            userProfileResponse?.message,
-                            Toast.LENGTH_SHORT
-                        ).show()
-                    }
-                } else {
-                    Toast.makeText(
-                        requireContext(),
-                        "Update profile failed",
-                        Toast.LENGTH_SHORT
-                    ).show()
-                }
+                handleProfileUpdateResponse(response)
             }
 
             override fun onFailure(call: Call<UserProfileResponse>, t: Throwable) {
-                Toast.makeText(
-                    requireContext(),
-                    "Error: ${t.message}",
-                    Toast.LENGTH_SHORT
-                ).show()
+                handleError(t)
             }
         })
+    }
+
+    private fun handleProfileUpdateResponse(response: Response<UserProfileResponse>) {
+        if (response.isSuccessful) {
+            val userProfileResponse = response.body()
+            if (userProfileResponse?.status == "success") {
+                showToast("Profile updated successfully")
+            } else {
+                showToast(userProfileResponse?.message ?: "Unknown error occurred")
+            }
+        } else {
+            showToast("Update profile failed")
+        }
     }
 
     private fun getUserId(): Int {
         val sharedPreferences = requireContext().getSharedPreferences("MyPrefs", Context.MODE_PRIVATE)
         return sharedPreferences.getInt("userId", -1) // Return -1 if user ID not found
+    }
+
+    private fun navigateToLoginFragment() {
+        findNavController().navigate(R.id.action_profilFragment_to_loginFragment)
+    }
+
+    private fun showToast(message: String) {
+        Toast.makeText(requireContext(), message, Toast.LENGTH_SHORT).show()
+    }
+
+    private fun handleError(t: Throwable) {
+        showToast("Error: ${t.message}")
     }
 
     override fun onDestroyView() {

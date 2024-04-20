@@ -27,22 +27,27 @@ class StoryDetailFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+        initializeViews()
+        setListeners()
+        updateContent()
+    }
 
-
-        story = arguments?.getParcelable("news") ?: Story("", "", "", "",emptyList())
-
+    private fun initializeViews() {
+        story = arguments?.getParcelable("news") ?: Story("", "", "", "", emptyList())
         binding.showTitle.text = story.title
         binding.showAuthor.text = story.author
+        Glide.with(requireContext())
+            .load(story.imageUrl)
+            .into(binding.showImage)
+    }
 
+    private fun setListeners() {
         binding.btnPrevPage.setOnClickListener {
             if (currentPage > 0) {
                 currentPage--
                 updateContent()
             }
         }
-        Glide.with(requireContext())
-            .load(story.imageUrl)
-            .into(binding.showImage)
 
         binding.btnNextPage.setOnClickListener {
             if (currentPage < story.content.size - 1) {
@@ -50,15 +55,14 @@ class StoryDetailFragment : Fragment() {
                 updateContent()
             }
         }
-
-        updateContent()
     }
 
     private fun updateContent() {
-        if (story.content.isNotEmpty()) {
-            binding.showContent.text = story.content[currentPage]
+        val contentList = story.content
+        if (contentList.isNotEmpty()) {
+            binding.showContent.text = contentList[currentPage]
             binding.btnPrevPage.isEnabled = currentPage > 0
-            binding.btnNextPage.isEnabled = currentPage < story.content.size - 1
+            binding.btnNextPage.isEnabled = currentPage < contentList.size - 1
         } else {
             binding.showContent.text = "None"
             binding.btnPrevPage.isEnabled = false
