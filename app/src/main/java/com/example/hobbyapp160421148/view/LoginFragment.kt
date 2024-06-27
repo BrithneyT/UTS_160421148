@@ -34,10 +34,6 @@ class LoginFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        setupClickListener()
-    }
-
-    private fun setupClickListener() {
         binding.btnLogin.setOnClickListener {
             val username = binding.txtUsername.text.toString()
             val password = binding.txtPassword.text.toString()
@@ -52,7 +48,7 @@ class LoginFragment : Fragment() {
 
     private fun login(username: String, password: String) {
         val retrofit = Retrofit.Builder()
-            .baseUrl(Db_Contract.url)
+            .baseUrl(Db_Contract.urlLogin)
             .addConverterFactory(GsonConverterFactory.create())
             .build()
 
@@ -60,44 +56,29 @@ class LoginFragment : Fragment() {
         val call = apiService.login(username, password)
         call.enqueue(object : Callback<LoginResponse> {
             override fun onResponse(call: Call<LoginResponse>, response: Response<LoginResponse>) {
-                handleLoginResponse(response)
+                if (response.isSuccessful) {
+                    val loginResponse = response.body()
+                    if (loginResponse?.status == "success") {
+                        val userId = loginResponse.userId
+
+                        // Save user ID to SharedPreferences
+                        val sharedPreferences = requireContext().getSharedPreferences("MyPrefs", Context.MODE_PRIVATE)
+                        sharedPreferences.edit().putInt("userId", userId).apply()
+
+                        Toast.makeText(requireContext(), loginResponse.message, Toast.LENGTH_SHORT).show()
+                        findNavController().navigate(R.id.action_loginFragment_to_homeFragment)
+                    } else {
+                        Toast.makeText(requireContext(), loginResponse?.message, Toast.LENGTH_SHORT).show()
+                    }
+                } else {
+                    Toast.makeText(requireContext(), "Login failed", Toast.LENGTH_SHORT).show()
+                }
             }
 
             override fun onFailure(call: Call<LoginResponse>, t: Throwable) {
-                handleError(t)
+                Toast.makeText(requireContext(), "Error: ${t.message}", Toast.LENGTH_SHORT).show()
             }
         })
-    }
-
-    private fun handleLoginResponse(response: Response<LoginResponse>) {
-        if (response.isSuccessful) {
-            val loginResponse = response.body()
-            if (loginResponse?.status == "success") {
-                val userId = loginResponse.userId
-
-                val sharedPreferences = requireContext().getSharedPreferences("MyPrefs", Context.MODE_PRIVATE)
-                sharedPreferences.edit().putInt("userId", userId).apply()
-
-                showToast(loginResponse.message)
-                navigateToHomeFragment()
-            } else {
-                loginResponse?.message?.let { showToast(it) }
-            }
-        } else {
-            showToast("Login failed")
-        }
-    }
-
-    private fun handleError(t: Throwable) {
-        showToast("Error: ${t.message}")
-    }
-
-    private fun showToast(message: String) {
-        Toast.makeText(requireContext(), message, Toast.LENGTH_SHORT).show()
-    }
-
-    private fun navigateToHomeFragment() {
-        findNavController().navigate(R.id.action_loginFragment_to_homeFragment)
     }
 
     override fun onDestroyView() {
