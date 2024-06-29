@@ -40,11 +40,17 @@
             android:id="@+id/action_homeFragment_to_profilFragment"
             app:destination="@id/profilFragment" />
     </fragment>
+
     <fragment
         android:id="@+id/fragmentDetailBerita"
         android:name="com.example.hobbyapp160421148.view.StoryDetailFragment"
         android:label="FragmentDetailBerita"
-        tools:layout="@layout/fragment_story_detail"/>
+        tools:layout="@layout/fragment_story_detail">
+        <argument
+            android:name="story"
+            app:argType="com.example.hobbyapp160421148.model.Story" />
+    </fragment>
+
     <fragment
         android:id="@+id/profilFragment"
         android:name="com.example.hobbyapp160421148.view.ProfilFragment"
@@ -54,6 +60,5 @@
             android:id="@+id/action_profilFragment_to_loginFragment"
             app:destination="@id/loginFragment" />
     </fragment>
-
 
 </navigation>

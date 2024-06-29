@@ -6,109 +6,88 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
+import androidx.databinding.ObservableField
 import androidx.fragment.app.Fragment
+import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
 import com.example.hobbyapp160421148.R
-import com.example.hobbyapp160421148.api.ApiService
-import com.example.hobbyapp160421148.api.Db_Contract
-import com.example.hobbyapp160421148.api.UserProfileResponse
 import com.example.hobbyapp160421148.databinding.FragmentProfilBinding
-import com.google.gson.GsonBuilder
-import retrofit2.Call
-import retrofit2.Callback
-import retrofit2.Response
-import retrofit2.Retrofit
-import retrofit2.converter.gson.GsonConverterFactory
+import com.example.hobbyapp160421148.model.AppDatabase
+import kotlinx.coroutines.launch
 
 class ProfilFragment : Fragment() {
-    private var _binding: FragmentProfilBinding? = null
-    private val binding get() = _binding!!
+
+    private lateinit var binding: FragmentProfilBinding
+    private var userId: Int = -1
+    val firstName = ObservableField<String>()
+    val lastName = ObservableField<String>()
+    val password = ObservableField<String>()
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View {
-        _binding = FragmentProfilBinding.inflate(inflater, container, false)
+        binding = FragmentProfilBinding.inflate(inflater, container, false)
+        binding.fragment = this
         return binding.root
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        setupClickListener()
+        loadUserData()
     }
 
-    private fun setupClickListener() {
-        binding.btnSave.setOnClickListener {
-            val firstName = binding.txtNamaDepan.text.toString()
-            val lastName = binding.txtNamaBelakang.text.toString()
-            val password = binding.txtPassword.text.toString()
-
-            updateProfile(firstName, lastName, password)
-        }
-
-        binding.btnLogout.setOnClickListener {
-            navigateToLoginFragment()
-        }
-    }
-
-    private fun updateProfile(firstName: String, lastName: String, password: String) {
-        val gson = GsonBuilder().setLenient().create()
-
-        val retrofit = Retrofit.Builder()
-            .baseUrl(Db_Contract.url)
-            .addConverterFactory(GsonConverterFactory.create(gson))
-            .build()
-
-        val apiService = retrofit.create(ApiService::class.java)
-        val userId = getUserId()
-        val call = apiService.updateProfile(userId, firstName, lastName, password)
-        call.enqueue(object : Callback<UserProfileResponse> {
-            override fun onResponse(
-                call: Call<UserProfileResponse>,
-                response: Response<UserProfileResponse>
-            ) {
-                handleProfileUpdateResponse(response)
-            }
-
-            override fun onFailure(call: Call<UserProfileResponse>, t: Throwable) {
-                handleError(t)
-            }
-        })
-    }
-
-    private fun handleProfileUpdateResponse(response: Response<UserProfileResponse>) {
-        if (response.isSuccessful) {
-            val userProfileResponse = response.body()
-            if (userProfileResponse?.status == "success") {
-                showToast("Profile updated successfully")
-            } else {
-                showToast(userProfileResponse?.message ?: "Unknown error occurred")
-            }
-        } else {
-            showToast("Update profile failed")
-        }
-    }
-
-    private fun getUserId(): Int {
+    private fun loadUserData() {
         val sharedPreferences = requireContext().getSharedPreferences("MyPrefs", Context.MODE_PRIVATE)
-        return sharedPreferences.getInt("userId", -1) // Return -1 if user ID not found
+        userId = sharedPreferences.getInt("userId", -1)
+
+        if (userId != -1) {
+            lifecycleScope.launch {
+                val db = AppDatabase.getDatabase(requireContext())
+                val userDao = db.userDao()
+                val currentUser = userDao.getUserById(userId) ?: return@launch
+                firstName.set(currentUser.firstName)
+                lastName.set(currentUser.lastName)
+                password.set(currentUser.password)
+            }
+        }
     }
 
-    private fun navigateToLoginFragment() {
+    fun onSaveClick() {
+        lifecycleScope.launch {
+            val db = AppDatabase.getDatabase(requireContext())
+            val userDao = db.userDao()
+            val currentUser = userDao.getUserById(userId) ?: return@launch
+
+            val updatedUser = currentUser.copy(
+                firstName = firstName.get() ?: "",
+                lastName = lastName.get() ?: "",
+                password = password.get() ?: ""
+            )
+
+            userDao.updateUser(updatedUser)
+            Toast.makeText(requireContext(), "Profile updated successfully", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    fun onLogoutClick() {
+        val sharedPreferences = requireContext().getSharedPreferences("MyPrefs", Context.MODE_PRIVATE)
+        sharedPreferences.edit().remove("userId").apply()
         findNavController().navigate(R.id.action_profilFragment_to_loginFragment)
     }
 
-    private fun showToast(message: String) {
-        Toast.makeText(requireContext(), message, Toast.LENGTH_SHORT).show()
-    }
+    fun onDeleteAccountClick() {
+        lifecycleScope.launch {
+            val db = AppDatabase.getDatabase(requireContext())
+            val userDao = db.userDao()
+            val currentUser = userDao.getUserById(userId) ?: return@launch
+            userDao.deleteUser(currentUser)
 
-    private fun handleError(t: Throwable) {
-        showToast("Error: ${t.message}")
-    }
+            val sharedPreferences = requireContext().getSharedPreferences("MyPrefs", Context.MODE_PRIVATE)
+            sharedPreferences.edit().remove("userId").apply()
 
-    override fun onDestroyView() {
-        super.onDestroyView()
-        _binding = null
+            Toast.makeText(requireContext(), "Account deleted successfully", Toast.LENGTH_SHORT).show()
+            findNavController().navigate(R.id.action_profilFragment_to_loginFragment)
+        }
     }
-
 }

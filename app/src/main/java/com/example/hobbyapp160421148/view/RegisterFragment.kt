@@ -6,98 +6,60 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
 import androidx.fragment.app.Fragment
+import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
 import com.example.hobbyapp160421148.R
-import com.example.hobbyapp160421148.api.ApiService
-import com.example.hobbyapp160421148.api.Db_Contract
-import com.example.hobbyapp160421148.api.RegisterResponse
 import com.example.hobbyapp160421148.databinding.FragmentRegisterBinding
-import retrofit2.Call
-import retrofit2.Callback
-import retrofit2.Response
-import retrofit2.Retrofit
-import retrofit2.converter.gson.GsonConverterFactory
+import com.example.hobbyapp160421148.model.AppDatabase
+import com.example.hobbyapp160421148.model.User
+import kotlinx.coroutines.launch
 
 class RegisterFragment : Fragment() {
 
-    private var _binding: FragmentRegisterBinding? = null
-    private val binding get() = _binding!!
+    private lateinit var binding: FragmentRegisterBinding
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View {
-        _binding = FragmentRegisterBinding.inflate(inflater, container, false)
+        binding = FragmentRegisterBinding.inflate(inflater, container, false)
+        binding.fragment = this
+        binding.user = UserData("", "", "", "", "")
         return binding.root
     }
 
-    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-        super.onViewCreated(view, savedInstanceState)
-        setupClickListener()
-    }
+    fun onRegisterClick() {
+        val username = binding.user?.username ?: ""
+        val firstName = binding.user?.firstName ?: ""
+        val lastName = binding.user?.lastName ?: ""
+        val email = binding.user?.email ?: ""
+        val password = binding.user?.password ?: ""
 
-    private fun setupClickListener() {
-        binding.btnRegister.setOnClickListener {
-            val username = binding.txtUsername.text.toString()
-            val firstName = binding.txtNamaDepan.text.toString()
-            val lastName = binding.txtNamaBelakang.text.toString()
-            val email = binding.txtEmail.text.toString()
-            val password = binding.txtPassword.text.toString()
-
+        lifecycleScope.launch {
             register(username, firstName, lastName, email, password)
         }
     }
 
-    private fun register(username: String, firstName: String, lastName: String, email: String, password: String) {
-        val retrofit = Retrofit.Builder()
-            .baseUrl(Db_Contract.url)
-            .addConverterFactory(GsonConverterFactory.create())
-            .build()
-
-        val apiService = retrofit.create(ApiService::class.java)
-        val call = apiService.register(username, firstName, lastName, email, password)
-        call.enqueue(object : Callback<RegisterResponse> {
-            override fun onResponse(
-                call: Call<RegisterResponse>,
-                response: Response<RegisterResponse>
-            ) {
-                handleRegisterResponse(response)
-            }
-
-            override fun onFailure(call: Call<RegisterResponse>, t: Throwable) {
-                handleError(t)
-            }
-        })
-    }
-
-    private fun handleRegisterResponse(response: Response<RegisterResponse>) {
-        if (response.isSuccessful) {
-            val registerResponse = response.body()
-            if (registerResponse?.status == "success") {
-                showToast("Registration successful")
-                navigateToLoginFragment()
-            } else {
-                showToast(registerResponse?.message ?: "Unknown error occurred")
-            }
-        } else {
-            showToast("Registration failed")
-        }
-    }
-
-    private fun navigateToLoginFragment() {
+    fun onBackToLoginClick() {
         findNavController().navigate(R.id.action_registerFragment_to_loginFragment)
     }
 
-    private fun showToast(message: String) {
-        Toast.makeText(requireContext(), message, Toast.LENGTH_SHORT).show()
+    private suspend fun register(username: String, firstName: String, lastName: String, email: String, password: String) {
+        val db = AppDatabase.getDatabase(requireContext())
+        val userDao = db.userDao()
+
+        val user = User(username = username, firstName = firstName, lastName = lastName, email = email, password = password)
+        userDao.insertUser(user)
+
+        Toast.makeText(requireContext(), "Registration successful", Toast.LENGTH_SHORT).show()
+        findNavController().navigate(R.id.action_registerFragment_to_loginFragment)
     }
 
-    private fun handleError(t: Throwable) {
-        showToast("Error: ${t.message}")
-    }
-
-    override fun onDestroyView() {
-        super.onDestroyView()
-        _binding = null
-    }
+    data class UserData(
+        var username: String,
+        var firstName: String,
+        var lastName: String,
+        var email: String,
+        var password: String
+    )
 }
